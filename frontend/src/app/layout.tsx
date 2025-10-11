@@ -7,7 +7,7 @@ import Header from "@/components/ui/Header"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "VidStream",
+  title: "VideoStream",
   description: "A modern video streaming platform built with Next.js",
 }
 
