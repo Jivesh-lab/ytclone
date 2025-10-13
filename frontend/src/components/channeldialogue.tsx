@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/router";
+
 import {
   Dialog,
   DialogContent,
@@ -9,101 +11,105 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Textarea} from "./ui/Textarea";
 import { Label } from "./ui/label";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiousInstance";
 
-interface ChanneldialogueProps {
-  isopen: boolean;
-  onclose: () => void;
-  mode: "create" | "edit";
-  existingData?: {
-    channelname?: string;
-    description?: string;
-  };
-}
-
-const Channeldialogue: React.FC<ChanneldialogueProps> = ({
-  isopen,
-  onclose,
-  mode,
-  existingData,
-}) => {
+const Channeldialogue = ({ isopen, onclose, channeldata, mode }: any) => {
   const { user, login } = useUser();
-  const [channelName, setChannelName] = useState(
-    existingData?.channelname || ""
-  );
-  const [description, setDescription] = useState(
-    existingData?.description || ""
-  );
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!channelName.trim()) return;
-
-    setIsLoading(true);
-    try {
-      const response = await axiosInstance.patch(`/user/${user?._id}`, {
-        channelname: channelName.trim(),
-        description: description.trim(),
+  // const user: any = {
+  //   id: "1",
+  //   name: "John Doe",
+  //   email: "john@example.com",
+  //   image: "https://github.com/shadcn.png?height=32&width=32",
+  // };
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+  });
+  const [isSubmitting, setisSubmitting] = useState(false);
+  useEffect(() => {
+    if (channeldata && mode === "edit") {
+      setFormData({
+        name: channeldata.name || "",
+        description: channeldata.description || "",
       });
-
-      // Update user context with new channel data
-      login(response.data.result);
-      onclose();
-      setChannelName("");
-      setDescription("");
-    } catch (error) {
-      console.error("Error creating/updating channel:", error);
-    } finally {
-      setIsLoading(false);
+    } else {
+      setFormData({
+        name: user?.name || "",
+        description: "",
+      });
     }
+  }, [channeldata]);
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
+  const handlesubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      channelname: formData.name,
+      description: formData.description,
+    };
+    const response = await axiosInstance.patch(
+      `/user/update/${user._id}`,
+      payload
+    );
+    login(response?.data);
+    router.push(`/channel/${user?._id}`);
+    setFormData({
+      name: "",
+      description: "",
+    });
+    onclose();
+  };
   return (
     <Dialog open={isopen} onOpenChange={onclose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md md:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create Channel" : "Edit Channel"}
+            {mode === "create" ? "Create your channel" : "Edit your channel"}
           </DialogTitle>
-          <DialogDescription>
-            {mode === "create"
-              ? "Create your channel to start uploading videos and building your audience."
-              : "Update your channel information."}
-          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="channelname">Channel Name</Label>
+
+        <form onSubmit={handlesubmit} className="space-y-6">
+          {/* Channel Name */}
+          <div className="space-y-2">
+            <Label htmlFor="name">Channel Name</Label>
             <Input
-              id="channelname"
-              value={channelName}
-              onChange={(e) => setChannelName(e.target.value)}
-              placeholder="Enter channel name"
-              required
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Input
+          {/* Channel Description */}
+          <div className="space-y-2">
+            <Label htmlFor="description">Channel Description</Label>
+            <Textarea
               id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe your channel"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows={4}
+              placeholder="Tell viewers about your channel..."
             />
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="flex justify-between sm:justify-between">
             <Button type="button" variant="outline" onClick={onclose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading || !channelName.trim()}>
-              {isLoading
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting
                 ? "Saving..."
                 : mode === "create"
                 ? "Create Channel"
-                : "Update Channel"}
+                : "Save Changes"}
             </Button>
           </DialogFooter>
         </form>
